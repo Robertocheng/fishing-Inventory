@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>釣客誌：狂野獵場 (The Angler: Wild Hunt)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts for Witcher & Pixel vibe -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Noto+Serif+TC:wght@500;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Noto Serif TC', serif;
+      background-color: #0c0d10;
+      color: #c3c0b8;
+      background-image: 
+        radial-gradient(circle at 50% 20%, rgba(30, 24, 18, 0.4) 0%, rgba(9, 10, 13, 0.95) 75%),
+        repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.15) 0px, rgba(0, 0, 0, 0.15) 2px, transparent 2px, transparent 4px);
+    }
+    .cinzel { font-family: 'Cinzel', serif; }
+    .pixel-font { font-family: 'Press Start 2P', monospace; }
+    
+    /* Witcher Style Frames & Borders */
+    .w-panel {
+      background: linear-gradient(180deg, rgba(25, 23, 21, 0.95) 0%, rgba(14, 14, 16, 0.98) 100%);
+      border: 1px solid #3d3527;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 5px 20px rgba(0,0,0,0.7);
+      position: relative;
+    }
+    .w-panel::before {
+      content: '';
+      position: absolute;
+      top: -2px; left: -2px; right: -2px; bottom: -2px;
+      border: 1px solid rgba(184, 145, 78, 0.25);
+      pointer-events: none;
+    }
+    
+    .w-slot {
+      background: radial-gradient(circle at center, #1e1d1a 0%, #0d0c0a 100%);
+      border: 1px solid #4a3e2a;
+      transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+      position: relative;
+    }
+    .w-slot:hover {
+      border-color: #c9a55c;
+      box-shadow: 0 0 12px rgba(201, 165, 92, 0.4);
+    }
+    .w-slot.drag-over {
+      border-color: #4ade80 !important;
+      background: radial-gradient(circle at center, #1a3822 0%, #0d1e12 100%) !important;
+    }
+    
+    /* Item Rarity Gradients */
+    .rarity-relic { border-color: #a335ee !important; }
+    .rarity-master { border-color: #ff8000 !important; }
+    .rarity-magic { border-color: #0070dd !important; }
+    .rarity-common { border-color: #555 !important; }
+
+    canvas#paperdoll {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #0e0e10; }
+    ::-webkit-scrollbar-thumb { background: #4a3c28; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #8a6e3d; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-amber-900 selection:text-amber-100">
+
+  <!-- ================= TOP WITCHER HUD BAR ================= -->
+  <header class="border-b border-[#2d251a] bg-[#121110]/95 px-6 py-2.5 flex items-center justify-between sticky top-0 z-40 backdrop-blur shadow-2xl">
+    <div class="flex items-center space-x-6">
+      <!-- Medallion Emblem -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full border-2 border-amber-600/70 bg-[#1e1710] flex items-center justify-center shadow-[0_0_12px_rgba(217,119,6,0.5)]">
+          <i data-lucide="anchor" class="w-5 h-5 text-amber-400"></i>
+        </div>
+        <div>
+          <span class="cinzel text-xs tracking-[0.25em] text-amber-500 font-bold block">ANGLER'S GUILD</span>
+          <h1 class="text-lg font-bold text-stone-200 tracking-wider">狂野獵場：釣客誌</h1>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center space-x-1 pl-4 border-l border-stone-800">
+        <button onclick="switchTab('inventory')" id="tab-inventory" class="px-4 py-1.5 text-sm font-medium rounded transition flex items-center space-x-2 text-amber-300 bg-amber-950/40 border border-amber-800/60">
+          <i data-lucide="sword" class="w-4 h-4"></i>
+          <span>裝備配置 (Armory)</span>
+        </button>
+        <button onclick="switchTab('checklist')" id="tab-checklist" class="px-4 py-1.5 text-sm font-medium rounded transition flex items-center space-x-2 text-stone-400 hover:text-amber-200">
+          <i data-lucide="check-square" class="w-4 h-4"></i>
+          <span>出征檢核 (Checklist)</span>
+        </button>
+        <button onclick="switchTab('logs')" id="tab-logs" class="px-4 py-1.5 text-sm font-medium rounded transition flex items-center space-x-2 text-stone-400 hover:text-amber-200">
+          <i data-lucide="scroll" class="w-4 h-4"></i>
+          <span>釣遊戰報誌 (Expeditions)</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Right Header HUD: Financials strictly showing Storage Value Only -->
+    <div class="flex items-center space-x-6 text-sm">
+      <div class="flex items-center space-x-2.5 bg-[#181614] px-4 py-1.5 rounded border border-[#3b3123]">
+        <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+        <div class="text-left">
+          <div class="text-[10px] text-stone-500 font-bold uppercase tracking-wider">倉庫在庫總資產</div>
+          <div class="font-bold text-amber-300 cinzel text-sm" id="hud-storage-val">NT$ 0</div>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2 text-stone-400">
+        <span class="text-xs uppercase text-stone-500 font-bold">釣客階級</span>
+        <span class="text-amber-400 font-bold cinzel text-sm">LV.29 大師獵手</span>
+      </div>
+
+      <!-- Add Gear Quick Button -->
+      <button onclick="openAddGearModal()" class="px-3 py-1.5 bg-gradient-to-r from-amber-700 to-amber-900 hover:from-amber-600 hover:to-amber-800 text-stone-100 text-xs font-bold rounded border border-amber-500/60 flex items-center space-x-1.5 shadow-lg">
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+        <span>登錄新裝備</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTENT VIEWS ================= -->
+  <main class="flex-1 max-w-[1720px] w-full mx-auto p-4 sm:p-6 overflow-hidden">
+    
+    <!-- VIEW 1: INVENTORY & CHARACTER ARMORY -->
+    <div id="view-inventory" class="grid grid-cols-12 gap-5 h-[calc(100vh-125px)]">
+
+      <!-- LEFT 1/3: WAREHOUSE & INVENTORY STORAGE -->
+      <div class="col-span-12 lg:col-span-4 w-panel rounded-lg p-4 flex flex-col h-full">
+        <!-- Storage Header & Category Filters -->
+        <div class="flex items-center justify-between pb-3 border-b border-[#2d251a]">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="package" class="w-4 h-4 text-amber-400"></i>
+            <span class="text-sm font-bold tracking-wide text-stone-200">倉庫裝備庫存 (Storage)</span>
+          </div>
+          <span class="text-xs text-stone-500 font-mono" id="storage-count">0 件裝備在庫</span>
+        </div>
+
+        <!-- Filter Sub-tabs -->
+        <div class="flex space-x-1 py-2 text-xs border-b border-[#23201a]">
+          <button onclick="filterStorage('all')" id="flt-all" class="px-2.5 py-1 bg-amber-950/60 text-amber-300 rounded border border-amber-800/40 font-medium">全部</button>
+          <button onclick="filterStorage('rod_reel')" id="flt-rod_reel" class="px-2.5 py-1 text-stone-400 hover:text-stone-200">竿與捲線器</button>
+          <button onclick="filterStorage('lure')" id="flt-lure" class="px-2.5 py-1 text-stone-400 hover:text-stone-200">擬餌與軟蟲</button>
+          <button onclick="filterStorage('wear')" id="flt-wear" class="px-2.5 py-1 text-stone-400 hover:text-stone-200">人身部品</button>
+          <button onclick="filterStorage('pocket')" id="flt-pocket" class="px-2.5 py-1 text-stone-400 hover:text-stone-200">隨身配件</button>
+        </div>
+
+        <!-- Storage Grid with Drag and Drop -->
+        <div class="flex-1 overflow-y-auto pr-1 my-2 grid grid-cols-4 sm:grid-cols-5 gap-2 content-start" id="storage-grid">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Selected Item Detail Card Preview -->
+        <div class="border-t border-[#30271c] pt-3 bg-[#11100e]/80 rounded p-2.5 text-xs flex flex-col justify-between" id="item-inspect-card">
+          <div class="text-stone-500 italic text-center py-3">點擊上方或拖曳物品檢視詳情</div>
+        </div>
+      </div>
+
+      <!-- CENTER & RIGHT: WITCHER PAPER-DOLL, SLOTS & CONTAINERS -->
+      <div class="col-span-12 lg:col-span-8 grid grid-cols-12 gap-5 h-full overflow-y-auto pr-1">
+
+        <!-- MIDDLE: WEAPON COMBOS, MAIN HAND & ROD-REEL ASSEMBLY TABLE -->
+        <div class="col-span-12 xl:col-span-4 flex flex-col space-y-4">
+
+          <!-- 1. ROD & REEL FORGE/ASSEMBLY BENCH (竿捲合體鍛造台) -->
+          <div class="w-panel p-3.5 rounded-lg border border-amber-900/40">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#2c2217]">
+              <span class="text-xs font-bold text-amber-400 cinzel flex items-center space-x-1.5">
+                <i data-lucide="wrench" class="w-3.5 h-3.5"></i>
+                <span>竿捲組裝鍛造台 (Combo Forge)</span>
+              </span>
+              <button onclick="disassembleCombo()" class="text-[11px] text-stone-400 hover:text-amber-200 underline">拆卸竿捲</button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 text-center text-xs">
+              <!-- Rod Slot for Bench -->
+              <div id="bench-rod" ondragover="allowDrop(event)" ondrop="dropToBench(event, 'rod')" class="w-slot p-2 rounded flex flex-col items-center justify-center min-h-[75px] border-dashed border-[#574830]">
+                <span class="text-[10px] text-stone-500">拖入釣竿 (Rod)</span>
+                <div id="bench-rod-content" class="mt-1 font-bold text-stone-300">尚未置入</div>
+              </div>
+              <!-- Reel Slot for Bench -->
+              <div id="bench-reel" ondragover="allowDrop(event)" ondrop="dropToBench(event, 'reel')" class="w-slot p-2 rounded flex flex-col items-center justify-center min-h-[75px] border-dashed border-[#574830]">
+                <span class="text-[10px] text-stone-500">拖入捲線器 (Reel)</span>
+                <div id="bench-reel-content" class="mt-1 font-bold text-stone-300">尚未置入</div>
+              </div>
+            </div>
+
+            <button onclick="assembleCombo()" class="w-full mt-2 py-1.5 bg-gradient-to-r from-amber-900/80 to-amber-800/80 hover:from-amber-700 hover:to-amber-600 text-stone-100 rounded text-xs font-bold border border-amber-600/50 flex items-center justify-center space-x-1 shadow">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i>
+              <span>合體成釣組並裝入主手</span>
+            </button>
+          </div>
+
+          <!-- 2. PRIMARY WEAPON SLOT: ASSEMBLED COMBO -->
+          <div class="w-panel p-3.5 rounded-lg flex-1 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-bold text-stone-300 pb-2 border-b border-[#2e261d] flex items-center justify-between">
+                <span class="flex items-center space-x-1.5">
+                  <i data-lucide="swords" class="w-4 h-4 text-amber-500"></i>
+                  <span>主武器：現役出征釣組 (Rod & Reel Combo)</span>
+                </span>
+                <span class="text-[10px] text-amber-400 cinzel" id="combo-rarity">EQUIPPED</span>
+              </div>
+
+              <!-- Main Combo Display Card -->
+              <div id="slot-maincombo" ondragover="allowDrop(event)" ondrop="dropToSlot(event, 'maincombo')" class="w-slot mt-3 p-3 rounded-lg border-2 border-amber-600/50 bg-[#161412] min-h-[140px] flex flex-col justify-between">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <div class="text-xs font-bold text-amber-200" id="combo-title">Megabass 獵魔仕女竿 + Shimano 22 Stella</div>
+                    <div class="text-[11px] text-stone-400 mt-1" id="combo-specs">餌重: 5-21g | 齒輪比 6.2:1 | 總重 370g</div>
+                  </div>
+                  <i data-lucide="gem" class="w-5 h-5 text-amber-400"></i>
+                </div>
+                <div class="pt-2 border-t border-[#31271b] flex items-center justify-between text-[11px]">
+                  <span class="text-stone-400">母線配置:</span>
+                  <span class="text-sky-300 font-mono">Varivas 8股 0.8號 PE (150m)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tactical Sub-Containers Quick Access Toggle -->
+            <div class="space-y-2 pt-3">
+              <div class="text-xs font-bold text-stone-400">專屬收納容器 (Mounted Rigs)</div>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div onclick="toggleBoxModal('lureBox')" class="w-slot p-2 rounded cursor-pointer hover:border-amber-400 flex items-center space-x-2">
+                  <i data-lucide="box" class="w-4 h-4 text-amber-400"></i>
+                  <div>
+                    <div class="font-bold text-stone-200">路亞盒隔層</div>
+                    <div class="text-[10px] text-stone-400" id="lurebox-counter">7 / 10 隻硬餌</div>
+                  </div>
+                </div>
+
+                <div onclick="toggleBoxModal('softBaitBinder')" class="w-slot p-2 rounded cursor-pointer hover:border-emerald-400 flex items-center space-x-2">
+                  <i data-lucide="archive" class="w-4 h-4 text-emerald-400"></i>
+                  <div>
+                    <div class="font-bold text-stone-200">軟蟲收納袋</div>
+                    <div class="text-[10px] text-stone-400" id="softbait-counter">5 種類 28 尾</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- CENTER-RIGHT: PAPER-DOLL CHARACTER WITH INDEPENDENT HAT & EYEWEAR & 9-GRID POCKETS -->
+        <div class="col-span-12 xl:col-span-8 flex flex-col space-y-4">
+          
+          <div class="w-panel p-4 rounded-lg flex flex-col md:flex-row items-center gap-5">
+            
+            <!-- LEFT EQUIPMENT SLOTS (Hat, Glasses, Chest, Boots) -->
+            <div class="flex flex-col space-y-2.5 w-full md:w-36">
+              <!-- Hat Slot -->
+              <div class="text-center">
+                <span class="text-[10px] text-stone-400 font-semibold block mb-0.5">帽子 (Hat)</span>
+                <div id="slot-hat" onclick="selectSlotForEquip('hat')" ondragover="allowDrop(event)" ondrop="dropToSlot(event, 'hat')" class="w-slot p-2 rounded h-16 flex flex-col items-center justify-center cursor-pointer border-[#473b28]">
+                  <i data-lucide="crown" class="w-4 h-4 text-amber-300"></i>
+                  <span class="text-[10px] font-bold text-stone-300 mt-1 truncate max-w-[120px]" id="slot-hat-name">Simms 拓荒者遮陽帽</span>
+                </div>
+              </div>
+
+              <!-- Eyewear Slot (Separate!) -->
+              <div class="text-center">
+                <span class="text-[10px] text-stone-400 font-semibold block mb-0.5">偏光太陽眼鏡 (Glasses)</span>
+                <div id="slot-eyewear" onclick="selectSlotForEquip('eyewear')" ondragover="allowDrop(event)" ondrop="dropToSlot(event, 'eyewear')" class="w-slot p-2 rounded h-16 flex flex-col items-center justify-center cursor-pointer border-[#473b28]">
+                  <i data-lucide="glasses" class="w-4 h-4 text-sky-400"></i>
+                  <span class="text-[10px] font-bold text-stone-300 mt-1 truncate max-w-[120px]" id="slot-eyewear-name">Costa 580G 偏光鏡</span>
+                </div>
+              </div>
+
+              <!-- Chest Armor/Vest Slot -->
+              <div class="text-center">
+                <span class="text-[10px] text-stone-400 font-semibold block mb-0.5">路亞戰術背心 (Chest)</span>
+                <div id="slot-vest" onclick="selectSlotForEquip('vest')" ondragover="allowDrop(event)" ondrop="dropToSlot(event, 'vest')" class="w-slot p-2 rounded h-16 flex flex-col items-center justify-center cursor-pointer border-[#473b28]">
+                  <i data-lucide="shield" class="w-4 h-4 text-emerald-400"></i>
+                  <span class="text-[10px] font-bold text-stone-300 mt-1 truncate max-w-[120px]" id="slot-vest-name">Pazdesign 戰術背心</span>
+                </div>
+              </div>
+
+              <!-- Boots Slot -->
+              <div class="text-center">
+                <span class="text-[10px] text-stone-400 font-semibold block mb-0.5">菜瓜布釘鞋 (Boots)</span>
+                <div id="slot-boots" onclick="selectSlotForEquip('boots')" ondragover="allowDrop(event)" ondrop="dropToSlot(event, 'boots')" class="w-slot p-2 rounded h-16 flex flex-col items-center justify-center cursor-pointer border-[#473b28]">
+                  <i data-lucide="footprints" class="w-4 h-4 text-amber-500"></i>
+                  <span class="text-[10px] font-bold text-stone-300 mt-1 truncate max-w-[120px]" id="slot-boots-name">PROX 防滑菜瓜布釘鞋</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- CENTER CANVAS: WITCHER PIXEL ART CHARACTER -->
+            <div class="flex-1 flex flex-col items-center justify-center relative">
+              <div class="relative w-52 h-64 border-2 border-[#3c3120] bg-gradient-to-b from-[#191612] to-[#0c0d0f] rounded-lg shadow-inner flex items-center justify-center overflow-hidden">
+                <canvas id="paperdoll" width="64" height="64" class="w-48 h-48 cursor-pointer" onclick="toggleHeroAction()"></canvas>
+                <div class="absolute bottom-2 text-[10px] font-mono text-amber-400/80 bg-black/60 px-2 py-0.5 rounded">
+                  點擊角色揮竿備戰
+                </div>
+              </div>
+              <div class="cinzel text-xs text-stone-400 mt-2 font-bold tracking-widest">GERALT OF RIVER</div>
+            </div>
+
+            <!-- RIGHT 9-GRID UTILITY POCKETS (隨身九宮格配件欄位) -->
+            <div class="w-full md:w-56 flex flex-col">
+              <div class="text-center pb-1 mb-1 border-b border-[#302518]">
+                <span class="text-[11px] font-bold text-amber-400 flex items-center justify-center space-x-1">
+                  <i data-lucide="grid" class="w-3.5 h-3.5"></i>
+                  <span>九宮格隨身配件口袋</span>
+                </span>
+                <span class="text-[9px] text-stone-500">自由置入工具/小藥水/鉗夾</span>
+              </div>
+
+              <!-- 3x3 Nine-grid -->
+              <div class="grid grid-cols-3 gap-1.5 p-1 bg-[#121110] rounded border border-[#2e261a]" id="nine-grid-pockets">
+                <!-- 9 slots generated dynamically -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- SUB-CONTAINERS PREVIEW / TACKLE QUICK TRAY -->
+          <div class="w-panel p-3 rounded-lg flex-1">
+            <div class="flex items-center justify-between pb-2 border-b border-[#2e261c] text-xs">
+              <span class="font-bold text-stone-300 flex items-center space-x-1.5">
+                <i data-lucide="layers" class="w-4 h-4 text-amber-400"></i>
+                <span>目前隨身路亞盒快選格盤 (Tackle Tray in Bag)</span>
+              </span>
+              <button onclick="openAddGearModal('lure')" class="text-amber-400 hover:text-amber-200 text-[11px]">+ 新增擬餌</button>
+            </div>
+            <!-- Lure Quick Slots -->
+            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-2" id="lure-quick-tray">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- VIEW 2: EXPEDITION CHECKLIST (DYNAMICALLY TIED TO VALUE & WEIGHT) -->
+    <div id="view-checklist" class="hidden w-panel rounded-lg p-6 max-w-4xl mx-auto h-[calc(100vh-125px)] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-[#3e3424] pb-4 mb-4">
+        <div>
+          <span class="cinzel text-xs text-amber-500 font-bold block tracking-widest">OUTING PREPARATION</span>
+          <h2 class="text-xl font-bold text-stone-100 flex items-center space-x-2">
+            <span>出征整備檢核表</span>
+          </h2>
+          <p class="text-xs text-stone-400 mt-1">每勾選一項，動態累積今日出征裝備的重量與身價！</p>
+        </div>
+
+        <!-- One Click Check Button for the Confident Anglers -->
+        <div class="flex items-center space-x-3">
+          <button onclick="checkAllItems()" class="px-4 py-2 bg-gradient-to-r from-amber-700 to-amber-900 hover:from-amber-600 hover:to-amber-800 text-stone-100 font-bold text-xs rounded border border-amber-500 shadow flex items-center space-x-1.5">
+            <i data-lucide="zap" class="w-4 h-4 text-yellow-300"></i>
+            <span>⚡ 一鍵全檢核 (給自信滿滿的人)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Real-time Dynamic Expedition Metric HUD -->
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-[#171512] border border-[#3e3223] p-3 rounded-lg text-center">
+          <span class="text-xs text-stone-400 block">今日出征已檢核身價</span>
+          <span class="text-lg font-bold cinzel text-amber-300" id="chk-total-price">NT$ 0</span>
+        </div>
+        <div class="bg-[#171512] border border-[#3e3223] p-3 rounded-lg text-center">
+          <span class="text-xs text-stone-400 block">今日出征已檢核配重</span>
+          <span class="text-lg font-bold cinzel text-emerald-400" id="chk-total-weight">0.0 kg</span>
+        </div>
+        <div class="bg-[#171512] border border-[#3e3223] p-3 rounded-lg text-center">
+          <span class="text-xs text-stone-400 block">出征整備度</span>
+          <span class="text-lg font-bold cinzel text-sky-400" id="chk-progress-percent">0%</span>
+        </div>
+      </div>
+
+      <!-- Checklist Items Container -->
+      <div class="space-y-4" id="checklist-container">
+        <!-- Generated Dynamically -->
+      </div>
+
+      <!-- Finish Checklist & Start Expedition -->
+      <div class="mt-6 pt-4 border-t border-[#312519] flex justify-end space-x-4">
+        <button onclick="startExpeditionFromChecklist()" class="px-6 py-2.5 bg-gradient-to-r from-emerald-800 to-emerald-950 hover:from-emerald-700 hover:to-emerald-900 text-emerald-100 font-bold text-sm rounded border border-emerald-600/70 shadow-lg flex items-center space-x-2">
+          <i data-lucide="compass" class="w-4 h-4 text-emerald-300"></i>
+          <span>確認整備完成・開始今日出征日誌</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW 3: FISHING DIVE-LOGS & UNDERWATER CASUALTIES (EXPEDITION LOGS) -->
+    <div id="view-logs" class="hidden w-panel rounded-lg p-6 max-w-5xl mx-auto h-[calc(100vh-125px)] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-[#3e3424] pb-4 mb-4">
+        <div>
+          <span class="cinzel text-xs text-amber-500 font-bold block tracking-widest">HUNTING CHRONICLES</span>
+          <h2 class="text-xl font-bold text-stone-100">釣遊戰報誌 (Dive-Log Style)</h2>
+          <p class="text-xs text-stone-400 mt-1">紀錄每次出征的身價、重量、戰果、以及沉入水底的祭河殉職慘劇。</p>
+        </div>
+        
+        <!-- Lifetime Snag Sacrifice Summary Pill -->
+        <div class="bg-[#241212] border border-red-900/80 px-4 py-2 rounded-lg text-right">
+          <span class="text-[10px] text-red-300 font-bold block uppercase tracking-wider">🪦 歷史累積水下祭品總虧損</span>
+          <span class="text-base font-bold text-red-400 cinzel" id="lifetime-snag-loss">NT$ 0</span>
+        </div>
+      </div>
+
+      <!-- Create New Log Button -->
+      <div class="mb-4 flex justify-between items-center">
+        <button onclick="openNewLogModal()" class="px-4 py-2 bg-amber-900/80 hover:bg-amber-800 text-stone-100 rounded text-xs font-bold border border-amber-500/60 flex items-center space-x-1.5 shadow">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-amber-400"></i>
+          <span>撰寫今日出征戰報</span>
+        </button>
+        <span class="text-xs text-stone-500" id="logs-count">共 0 篇冒險紀錄</span>
+      </div>
+
+      <!-- Logs Grid/List -->
+      <div class="space-y-4" id="logs-list">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ================= MODALS & POPUPS ================= -->
+
+  <!-- MODAL 1: ADD NEW GEAR (登錄新裝備) -->
+  <div id="modal-add-gear" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="w-panel max-w-lg w-full p-6 rounded-lg border border-amber-600/70 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-[#3b2e1f]">
+        <h3 class="text-base font-bold text-amber-300 flex items-center space-x-2">
+          <i data-lucide="plus-square" class="w-5 h-5"></i>
+          <span>裝備工房：登錄新裝備 (Register Tackle)</span>
+        </h3>
+        <button onclick="closeModal('modal-add-gear')" class="text-stone-400 hover:text-stone-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="add-gear-form" onsubmit="submitNewGear(event)" class="mt-4 space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-400 mb-1">裝備類別 (Category)</label>
+            <select id="new-gear-cat" onchange="toggleFormFields(this.value)" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+              <option value="rod">釣竿 (Fishing Rod)</option>
+              <option value="reel">捲線器 (Reel)</option>
+              <option value="lure">擬餌/米諾 (Hard Lure)</option>
+              <option value="soft">軟蟲/軟餌 (Soft Plastic)</option>
+              <option value="hat">帽子 (Headwear)</option>
+              <option value="eyewear">偏光眼鏡 (Eyewear)</option>
+              <option value="vest">背心 (Tactical Vest)</option>
+              <option value="boots">涉水釘鞋 (Boots)</option>
+              <option value="pocket">隨身小配件 (Pocket Tool)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-stone-400 mb-1">品牌 (Brand)</label>
+            <input type="text" id="new-gear-brand" required placeholder="例如: Megabass, Shimano, Daiwa" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-400 mb-1">型號名稱 (Model & Specs)</label>
+          <input type="text" id="new-gear-name" required placeholder="例如: 22 Stella C3000XG 或 OSP Blitz MR" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-400 mb-1">自重 (Weight in Grams)</label>
+            <input type="number" id="new-gear-weight" required min="1" placeholder="g" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+          </div>
+          <div>
+            <label class="block text-stone-400 mb-1">購入價格 (Price in NT$)</label>
+            <input type="number" id="new-gear-price" required min="0" placeholder="NT$" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+          </div>
+        </div>
+
+        <!-- Conditional Field for Rods: Cast Weight -->
+        <div id="field-rod-spec">
+          <label class="block text-stone-400 mb-1">拋投餌重範圍 (Lure Weight Range)</label>
+          <input type="text" id="new-gear-cast" placeholder="例如: 3.5 - 18g (Fast 調性)" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+        </div>
+
+        <!-- Conditional Field for Soft Plastic: Length & Count -->
+        <div id="field-soft-spec" class="hidden grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-400 mb-1">長度尺寸 (Length in inches)</label>
+            <input type="text" id="new-gear-len" placeholder="例如: 2.8 吋 或 3.5 吋" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+          </div>
+          <div>
+            <label class="block text-stone-400 mb-1">袋內尾數 (Tails Count)</label>
+            <input type="number" id="new-gear-count" min="1" placeholder="8" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-[#3b2e1f] flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('modal-add-gear')" class="px-4 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded font-medium">取消</button>
+          <button type="submit" class="px-5 py-1.5 bg-amber-800 hover:bg-amber-700 text-stone-100 rounded font-bold border border-amber-600/70">登錄入庫存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: WRITE EXPEDITION LOG (撰寫今日釣遊戰報) -->
+  <div id="modal-add-log" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="w-panel max-w-xl w-full p-6 rounded-lg border border-red-700/60 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-[#3b2e1f]">
+        <h3 class="text-base font-bold text-amber-300 flex items-center space-x-2">
+          <i data-lucide="skull" class="w-5 h-5 text-red-400"></i>
+          <span>新撰出征戰報與祭河慘劇 (Expedition Battle Report)</span>
+        </h3>
+        <button onclick="closeModal('modal-add-log')" class="text-stone-400 hover:text-stone-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="add-log-form" onsubmit="submitNewLog(event)" class="mt-4 space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-stone-400 mb-1">釣點 / 戰場名稱</label>
+            <input type="text" id="log-spot" required placeholder="例如: 基隆河成美段 / 大漢溪防波堤" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+          </div>
+          <div>
+            <label class="block text-stone-400 mb-1">同征戰友 (Companions)</label>
+            <input type="text" id="log-buddies" placeholder="例如: 白小姐、老李、阿飛" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+          </div>
+        </div>
+
+        <!-- Outing Stats Snapshot -->
+        <div class="grid grid-cols-2 gap-3 bg-[#151310] p-2.5 rounded border border-[#3b2d1d]">
+          <div>
+            <span class="text-stone-400 block">今日出征總身價快照:</span>
+            <input type="number" id="log-outing-price" class="bg-transparent font-bold text-amber-300 cinzel w-full outline-none" value="48200">
+          </div>
+          <div>
+            <span class="text-stone-400 block">今日出征配重快照 (kg):</span>
+            <input type="number" step="0.1" id="log-outing-weight" class="bg-transparent font-bold text-emerald-300 cinzel w-full outline-none" value="3.4">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-400 mb-1">起獲魚獲戰果 (Catches)</label>
+          <input type="text" id="log-catches" placeholder="例如: 鱸魚 52cm (Megabass X-80)、三間 35cm (軟蟲)" class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200">
+        </div>
+
+        <!-- Casualties & Losses -->
+        <div class="border border-red-900/50 bg-[#1a0f0f] p-3 rounded space-y-2">
+          <div class="font-bold text-red-300 flex items-center justify-between">
+            <span>💀 祭河殉職損失 (裝備卡底/噴竿/墨鏡落水)</span>
+            <span class="text-[11px] text-red-400 font-normal">記入水底祭品黑洞</span>
+          </div>
+          
+          <div>
+            <label class="block text-stone-400 mb-1">殉職物品清單 (多樣請逗號隔開)</label>
+            <input type="text" id="log-loss-items" placeholder="例如: Duo 鐵板米諾 1 隻、太陽眼鏡落水、子線割線" class="w-full bg-[#110909] border border-red-900/60 rounded p-2 text-stone-200">
+          </div>
+          <div>
+            <label class="block text-stone-400 mb-1">本日沉入水底殉職金額 (NT$)</label>
+            <input type="number" id="log-loss-price" min="0" placeholder="例如: 1200 (甚至如果是整把竿噴掉請填完整價格)" class="w-full bg-[#110909] border border-red-900/60 rounded p-2 text-red-300 font-bold">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-400 mb-1">戰況心得與秘境記錄</label>
+          <textarea id="log-notes" rows="3" placeholder="水色清澈、退潮時咬況熱烈，左岸消波塊底下藏有大鱸..." class="w-full bg-[#121110] border border-[#443625] rounded p-2 text-stone-200"></textarea>
+        </div>
+
+        <div class="pt-3 border-t border-[#3b2e1f] flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('modal-add-log')" class="px-4 py-1.5 bg-stone-800 text-stone-300 rounded">取消</button>
+          <button type="submit" class="px-5 py-1.5 bg-red-900 hover:bg-red-800 text-stone-100 rounded font-bold border border-red-600">完成並歸檔戰報</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    /* -------------------------------------------------------------
+       STATE MANAGEMENT & INITIAL DATABASE
+    ------------------------------------------------------------- */
+    let inventoryStorage = [
+      // Rods
+      { id: 'item-1', cat: 'rod', brand: 'Megabass', name: 'Triza F4-69XTZ 獵魔仕女竿', weight: 125, price: 14800, rarity: 'master', cast: '5-21g (Regular-Fast)' },
+      { id: 'item-2', cat: 'rod', brand: 'Abu Garcia', name: 'TITAN III 戰術微物竿', weight: 98, price: 3200, rarity: 'magic', cast: '2-10g (Fast)' },
+      { id: 'item-3', cat: 'rod', brand: 'Daiwa', name: 'LATEO 96ML 遠投海鱸竿', weight: 145, price: 6500, rarity: 'relic', cast: '7-35g (Medium)' },
+      
+      // Reels
+      { id: 'item-4', cat: 'reel', brand: 'Shimano', name: '22 Stella C3000XG 頂級紡車輪', weight: 210, price: 21500, rarity: 'relic', gearRatio: '6.2:1' },
+      { id: 'item-5', cat: 'reel', brand: 'Daiwa', name: 'Fuego 21 2500XH 機動捲線器', weight: 205, price: 2800, rarity: 'common', gearRatio: '6.2:1' },
+      
+      // Lures
+      { id: 'item-6', cat: 'lure', brand: 'Megabass', name: 'X-80 SW 炫彩米諾', weight: 11, price: 620, rarity: 'master' },
+      { id: 'item-7', cat: 'lure', brand: 'Duo', name: 'Tide Minnow 120 遠投梭魚餌', weight: 14, price: 580, rarity: 'magic' },
+      { id: 'item-8', cat: 'lure', brand: 'Jackall', name: 'Deracoup 1/2oz 金屬顫泳', weight: 14, price: 420, rarity: 'common' },
+      { id: 'item-9', cat: 'lure', brand: 'BlueBlue', name: 'Blooowin! 80S 狂暴米諾', weight: 8, price: 680, rarity: 'master' },
+      { id: 'item-10', cat: 'lure', brand: 'OSP', name: 'Blitz Max 浮水深潛曲柄餌', weight: 12, price: 590, rarity: 'magic' },
+      
+      // Soft Plastics
+      { id: 'item-11', cat: 'soft', brand: 'Keitech', name: 'Easy Shiner 軟魚 (櫻花粉)', weight: 35, price: 240, rarity: 'common', len: '3.0 吋', count: 8 },
+      { id: 'item-12', cat: 'soft', brand: 'Berkley', name: 'Gulp! 誘食高感度小海蜈蚣', weight: 45, price: 290, rarity: 'magic', len: '2.5 吋', count: 12 },
+
+      // Headwear & Eyewear (Separated!)
+      { id: 'item-13', cat: 'hat', brand: 'Simms', name: 'GORE-TEX 拓荒防水圓盤帽', weight: 85, price: 2200, rarity: 'magic' },
+      { id: 'item-14', cat: 'eyewear', brand: 'Costa', name: 'Del Mar 580G 琉璃偏光鏡', weight: 42, price: 8200, rarity: 'relic' },
+      
+      // Vest & Boots
+      { id: 'item-15', cat: 'vest', brand: 'Pazdesign', name: 'PSL 旗艦浮力戰術涉水背心', weight: 1200, price: 6800, rarity: 'master' },
+      { id: 'item-16', cat: 'boots', brand: 'PROX', name: '雙重加固防滑菜瓜布釘鞋', weight: 950, price: 2400, rarity: 'common' },
+      
+      // Pocket Utility Tools
+      { id: 'item-17', cat: 'pocket', brand: 'Studio OceanMark', name: '極輕量鈦合金路亞鉗', weight: 110, price: 3800, rarity: 'relic' },
+      { id: 'item-18', cat: 'pocket', brand: 'DRESS', name: '恐龍爪金屬控魚夾', weight: 160, price: 1650, rarity: 'magic' },
+      { id: 'item-19', cat: 'pocket', brand: 'Smith', name: 'PE專用極銳剪線刀', weight: 35, price: 480, rarity: 'common' },
+      { id: 'item-20', cat: 'pocket', brand: 'Rapala', name: '微型夜釣高流明防水夾帽燈', weight: 40, price: 650, rarity: 'common' },
+      { id: 'item-21', cat: 'pocket', brand: 'Varivas', name: '碳纖前導線 3號 (30m)', weight: 50, price: 350, rarity: 'magic' },
+      { id: 'item-22', cat: 'pocket', brand: 'Meiho', name: '廢棄斷線環保收集器', weight: 28, price: 220, rarity: 'common' }
+    ];
+
+    // Current Equipment Loadout
+    let loadout = {
+      hat: inventoryStorage[12],
+      eyewear: inventoryStorage[13],
+      vest: inventoryStorage[14],
+      boots: inventoryStorage[15],
+      mainCombo: {
+        rod: inventoryStorage[0],
+        reel: inventoryStorage[3],
+        title: "Megabass Triza + Shimano 22 Stella",
+        totalPrice: 14800 + 21500,
+        totalWeight: 125 + 210
+      },
+      // 9-Grid Pockets for Utility items
+      pockets: [
+        inventoryStorage[16], // 鈦合金路亞鉗
+        inventoryStorage[17], // 控魚夾
+        inventoryStorage[18], // PE剪
+        inventoryStorage[19], // 夾帽燈
+        inventoryStorage[20], // 前導線
+        inventoryStorage[21], // 廢線盒
+        null, null, null
+      ],
+      lureBox: [
+        inventoryStorage[5],
+        inventoryStorage[6],
+        inventoryStorage[7],
+        inventoryStorage[8],
+        inventoryStorage[9]
+      ]
+    };
+
+    // Forge Bench Temp State
+    let forgeBench = {
+      rod: null,
+      reel: null
+    };
+
+    // Expedition Battle Logs History
+    let expeditionLogs = [
+      {
+        id: 'log-1',
+        date: '2026-10-24',
+        spot: '基隆河・彩虹橋標點',
+        buddies: '白小姐',
+        outingPrice: 62400,
+        outingWeight: 3.2,
+        catches: '海鱸 48cm (Megabass X-80)、吳郭魚 32cm',
+        sacrifices: 'Duo Tide Minnow 1 隻 (卡底斷線)',
+        lossAmount: 580,
+        notes: '傍晚水流漸急，回水灣處炸水花。夜釣視線稍差，注意消波塊濕滑。'
+      },
+      {
+        id: 'log-2',
+        date: '2026-09-18',
+        spot: '大漢溪・柑園段急流水門',
+        buddies: '阿凱',
+        outingPrice: 48900,
+        outingWeight: 2.8,
+        catches: '魚虎 62cm (激烈拉扯咬碎鉛頭鉤)、捲仔 38cm',
+        sacrifices: '偏光鏡落水沈入急流、金屬顫泳 2 隻',
+        lossAmount: 8200 + 840,
+        notes: '遭遇巨物洗鰓！可惜眼鏡彎腰起魚時滑落水底獻祭給急流水神。'
+      }
+    ];
+
+    // Selected item for inspection preview
+    let inspectedItem = null;
+
+    /* -------------------------------------------------------------
+       INITIALIZATION
+    ------------------------------------------------------------- */
+    window.addEventListener('DOMContentLoaded', () => {
+      renderHUDStorageValue();
+      renderStorageGrid('all');
+      renderLoadoutSlots();
+      renderNineGridPockets();
+      renderLureTray();
+      initPixelPaperDoll();
+      renderChecklist();
+      renderLogs();
+      lucide.createIcons();
+    });
+
+    /* -------------------------------------------------------------
+       FINANCIAL CALCULATION (ONLY STORAGE VALUE IN MAIN HEADER)
+    ------------------------------------------------------------- */
+    function renderHUDStorageValue() {
+      // Sum all gear currently in storage
+      const totalStorageNT = inventoryStorage.reduce((acc, item) => acc + (item.price || 0), 0);
+      document.getElementById('hud-storage-val').innerText = `NT$ ${totalStorageNT.toLocaleString()}`;
+      document.getElementById('storage-count').innerText = `${inventoryStorage.length} 件在庫庫存`;
+    }
+
+    /* -------------------------------------------------------------
+       STORAGE INVENTORY & FILTERING
+    ------------------------------------------------------------- */
+    function filterStorage(filter) {
+      ['all', 'rod_reel', 'lure', 'wear', 'pocket'].forEach(f => {
+        const btn = document.getElementById(`flt-${f}`);
+        if(btn) {
+          if (f === filter) {
+            btn.className = "px-2.5 py-1 bg-amber-950/80 text-amber-300 rounded border border-amber-800/60 font-bold";
+          } else {
+            btn.className = "px-2.5 py-1 text-stone-400 hover:text-stone-200";
+          }
+        }
+      });
+      renderStorageGrid(filter);
+    }
+
+    function renderStorageGrid(filter = 'all') {
+      const grid = document.getElementById('storage-grid');
+      grid.innerHTML = '';
+
+      const filtered = inventoryStorage.filter(item => {
+        if (filter === 'all') return true;
+        if (filter === 'rod_reel') return item.cat === 'rod' || item.cat === 'reel';
+        if (filter === 'lure') return item.cat === 'lure' || item.cat === 'soft';
+        if (filter === 'wear') return ['hat', 'eyewear', 'vest', 'boots'].includes(item.cat);
+        if (filter === 'pocket') return item.cat === 'pocket';
+        return true;
+      });
+
+      filtered.forEach(item => {
+        const slotEl = document.createElement('div');
+        const rarityBorder = getRarityBorder(item.rarity);
+        slotEl.className = `w-slot aspect-square rounded p-1.5 flex flex-col justify-between cursor-pointer border ${rarityBorder}`;
+        slotEl.setAttribute('draggable', 'true');
+        slotEl.ondragstart = (e) => dragStart(e, item.id);
+        slotEl.onclick = () => inspectItem(item);
+
+        let iconName = 'box';
+        if (item.cat === 'rod') iconName = 'wand2';
+        else if (item.cat === 'reel') iconName = 'disc';
+        else if (item.cat === 'lure') iconName = 'fish';
+        else if (item.cat === 'soft') iconName = 'activity';
+        else if (item.cat === 'hat') iconName = 'crown';
+        else if (item.cat === 'eyewear') iconName = 'glasses';
+        else if (item.cat === 'vest') iconName = 'shield';
+        else if (item.cat === 'boots') iconName = 'footprints';
+        else if (item.cat === 'pocket') iconName = 'tool';
+
+        slotEl.innerHTML = `
+          <div class="flex justify-between items-start">
+            <span class="text-[9px] font-mono text-stone-500">${item.weight}g</span>
+            <i data-lucide="${iconName}" class="w-3.5 h-3.5 text-stone-300"></i>
+          </div>
+          <div class="truncate text-[10px] font-bold text-stone-200 mt-1">${item.name}</div>
+          <div class="text-[9px] text-amber-500 font-mono">NT$${item.price}</div>
+        `;
+        grid.appendChild(slotEl);
+      });
+      lucide.createIcons();
+    }
+
+    function inspectItem(item) {
+      inspectedItem = item;
+      const card = document.getElementById('item-inspect-card');
+      card.innerHTML = `
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="text-[10px] text-amber-500 uppercase tracking-widest font-mono font-bold">${item.brand}</span>
+            <div class="text-sm font-bold text-stone-100">${item.name}</div>
+          </div>
+          <span class="text-[10px] px-2 py-0.5 rounded border border-amber-600/40 text-amber-300 uppercase">${item.rarity}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 my-2 py-1.5 border-y border-[#2a2218] text-[11px]">
+          <div>重量: <span class="text-stone-200">${item.weight} 克</span></div>
+          <div>造價: <span class="text-amber-400 font-bold">NT$ ${item.price.toLocaleString()}</span></div>
+          ${item.cast ? `<div class="col-span-2">拋投餌重: <span class="text-emerald-300">${item.cast}</span></div>` : ''}
+          ${item.len ? `<div>尺寸: <span class="text-sky-300">${item.len}</span></div>` : ''}
+          ${item.count ? `<div>殘存尾數: <span class="text-amber-300">${item.count} 尾</span></div>` : ''}
+        </div>
+        <div class="flex space-x-2 pt-1">
+          <button onclick="equipInspectedItem()" class="flex-1 py-1 bg-amber-800 hover:bg-amber-700 text-stone-100 font-bold rounded text-xs">裝備上去 / 放入格子</button>
+        </div>
+      `;
+    }
+
+    function equipInspectedItem() {
+      if(!inspectedItem) return;
+      const item = inspectedItem;
+
+      if(item.cat === 'hat') loadout.hat = item;
+      else if(item.cat === 'eyewear') loadout.eyewear = item;
+      else if(item.cat === 'vest') loadout.vest = item;
+      else if(item.cat === 'boots') loadout.boots = item;
+      else if(item.cat === 'lure') {
+        if(loadout.lureBox.length < 10) loadout.lureBox.push(item);
+        else alert('路亞盒已滿 (最多10隻)！');
+      }
+      else if(item.cat === 'pocket') {
+        // Find empty slot in 9-grid
+        const emptyIdx = loadout.pockets.findIndex(s => s === null);
+        if(emptyIdx !== -1) {
+          loadout.pockets[emptyIdx] = item;
+        } else {
+          loadout.pockets[0] = item; // replace first
+        }
+      }
+      else if(item.cat === 'rod') {
+        forgeBench.rod = item;
+        updateForgeBenchUI();
+      }
+      else if(item.cat === 'reel') {
+        forgeBench.reel = item;
+        updateForgeBenchUI();
+      }
+
+      renderLoadoutSlots();
+      renderNineGridPockets();
+      renderLureTray();
+      renderChecklist();
+      lucide.createIcons();
+    }
+
+    /* -------------------------------------------------------------
+       FORGE BENCH: ROD & REEL ASSEMBLY
+    ------------------------------------------------------------- */
+    function updateForgeBenchUI() {
+      const rodBox = document.getElementById('bench-rod-content');
+      const reelBox = document.getElementById('bench-reel-content');
+      rodBox.innerText = forgeBench.rod ? `${forgeBench.rod.brand} ${forgeBench.rod.name}` : '尚未置入';
+      reelBox.innerText = forgeBench.reel ? `${forgeBench.reel.brand} ${forgeBench.reel.name}` : '尚未置入';
+    }
+
+    function dropToBench(e, targetType) {
+      e.preventDefault();
+      const itemId = e.dataTransfer.getData('text/plain');
+      const item = inventoryStorage.find(i => i.id === itemId);
+      if(!item) return;
+
+      if(targetType === 'rod' && item.cat === 'rod') {
+        forgeBench.rod = item;
+      } else if(targetType === 'reel' && item.cat === 'reel') {
+        forgeBench.reel = item;
+      }
+      updateForgeBenchUI();
+    }
+
+    function assembleCombo() {
+      if(!forgeBench.rod || !forgeBench.reel) {
+        alert('請先在鍛造台放入一隻竿子與一顆捲線器，方可合體組裝！');
+        return;
+      }
+
+      loadout.mainCombo = {
+        rod: forgeBench.rod,
+        reel: forgeBench.reel,
+        title: `${forgeBench.rod.brand} + ${forgeBench.reel.brand} 組合釣組`,
+        totalPrice: forgeBench.rod.price + forgeBench.reel.price,
+        totalWeight: forgeBench.rod.weight + forgeBench.reel.weight
+      };
+
+      // Update Main Weapon Combo UI
+      document.getElementById('combo-title').innerText = loadout.mainCombo.title;
+      document.getElementById('combo-specs').innerText = `餌重: ${forgeBench.rod.cast || '5-20g'} | 齒輪比: ${forgeBench.reel.gearRatio || '6.2:1'} | 總重: ${loadout.mainCombo.totalWeight}g`;
+
+      renderChecklist();
+      alert('⚔️ 竿捲合體成功！已正式配戴至出征主手武器槽！');
+    }
+
+    function disassembleCombo() {
+      loadout.mainCombo = null;
+      document.getElementById('combo-title').innerText = '未配戴主武器釣組';
+      document.getElementById('combo-specs').innerText = '請至上方合體鍛造台組裝竿捲';
+      renderChecklist();
+    }
+
+    /* -------------------------------------------------------------
+       NINE-GRID POCKETS RENDERING
+    ------------------------------------------------------------- */
+    function renderNineGridPockets() {
+      const grid = document.getElementById('nine-grid-pockets');
+      grid.innerHTML = '';
+
+      for(let i = 0; i < 9; i++) {
+        const item = loadout.pockets[i];
+        const cell = document.createElement('div');
+        cell.className = "w-slot aspect-square rounded p-1 flex flex-col items-center justify-center cursor-pointer border border-[#3f3424] hover:border-amber-400 relative group";
+        cell.ondragover = (e) => allowDrop(e);
+        cell.ondrop = (e) => dropToPocketSlot(e, i);
+        cell.onclick = () => {
+          if(item) {
+            loadout.pockets[i] = null; // click to unequip
+            renderNineGridPockets();
+            renderChecklist();
+          }
+        };
+
+        if(item) {
+          cell.innerHTML = `
+            <i data-lucide="tool" class="w-4 h-4 text-amber-300"></i>
+            <span class="text-[9px] text-stone-200 text-center truncate max-w-full font-bold mt-0.5">${item.name}</span>
+            <span class="text-[8px] text-stone-500 font-mono">${item.weight}g</span>
+          `;
+        } else {
+          cell.innerHTML = `
+            <span class="text-[10px] text-stone-600 font-mono font-bold">${i + 1}</span>
+            <span class="text-[8px] text-stone-700">空口袋</span>
+          `;
+        }
+        grid.appendChild(cell);
+      }
+      lucide.createIcons();
+    }
+
+    function dropToPocketSlot(e, index) {
+      e.preventDefault();
+      const itemId = e.dataTransfer.getData('text/plain');
+      const item = inventoryStorage.find(i => i.id === itemId);
+      if(item) {
+        loadout.pockets[index] = item;
+        renderNineGridPockets();
+        renderChecklist();
+      }
+    }
+
+    /* -------------------------------------------------------------
+       LOADOUT SLOTS (HAT, EYEWEAR, VEST, BOOTS)
+    ------------------------------------------------------------- */
+    function renderLoadoutSlots() {
+      // Hat
+      document.getElementById('slot-hat-name').innerText = loadout.hat ? `${loadout.hat.name}` : '未配戴';
+      // Eyewear
+      document.getElementById('slot-eyewear-name').innerText = loadout.eyewear ? `${loadout.eyewear.name}` : '未配戴';
+      // Vest
+      document.getElementById('slot-vest-name').innerText = loadout.vest ? `${loadout.vest.name}` : '未配戴';
+      // Boots
+      document.getElementById('slot-boots-name').innerText = loadout.boots ? `${loadout.boots.name}` : '未配戴';
+    }
+
+    function renderLureTray() {
+      const tray = document.getElementById('lure-quick-tray');
+      tray.innerHTML = '';
+      loadout.lureBox.forEach((lure, idx) => {
+        const itemEl = document.createElement('div');
+        itemEl.className = "w-slot p-1.5 rounded flex flex-col justify-between text-xs cursor-pointer";
+        itemEl.innerHTML = `
+          <div class="flex justify-between items-center text-[9px] text-stone-400">
+            <span>#${idx+1}</span>
+            <span class="text-amber-400 font-mono">${lure.weight}g</span>
+          </div>
+          <div class="font-bold text-[10px] text-stone-200 truncate mt-1">${lure.name}</div>
+          <div class="text-[9px] text-stone-500">NT$ ${lure.price}</div>
+        `;
+        tray.appendChild(itemEl);
+      });
+      document.getElementById('lurebox-counter').innerText = `${loadout.lureBox.length} / 10 隻硬餌`;
+    }
+
+    /* -------------------------------------------------------------
+       DRAG AND DROP HANDLERS
+    ------------------------------------------------------------- */
+    function dragStart(e, itemId) {
+      e.dataTransfer.setData('text/plain', itemId);
+    }
+    function allowDrop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('drag-over');
+    }
+    function dropToSlot(e, slotName) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      const itemId = e.dataTransfer.getData('text/plain');
+      const item = inventoryStorage.find(i => i.id === itemId);
+      if(!item) return;
+
+      if(slotName === 'hat' && item.cat === 'hat') loadout.hat = item;
+      if(slotName === 'eyewear' && item.cat === 'eyewear') loadout.eyewear = item;
+      if(slotName === 'vest' && item.cat === 'vest') loadout.vest = item;
+      if(slotName === 'boots' && item.cat === 'boots') loadout.boots = item;
+      if(slotName === 'maincombo') {
+        if(item.cat === 'rod') { forgeBench.rod = item; updateForgeBenchUI(); }
+        if(item.cat === 'reel') { forgeBench.reel = item; updateForgeBenchUI(); }
+      }
+
+      renderLoadoutSlots();
+      renderChecklist();
+      lucide.createIcons();
+    }
+
+    /* -------------------------------------------------------------
+       EXPEDITION CHECKLIST: DYNAMIC PRICE & WEIGHT ACCUMULATION
+    ------------------------------------------------------------- */
+    // Array holding checked status of each item
+    let checklistItems = [];
+
+    function buildChecklistData() {
+      checklistItems = [];
+
+      // 1. Main Weapon Combo
+      if(loadout.mainCombo) {
+        checklistItems.push({
+          id: 'chk-main-combo',
+          category: '主手兵裝',
+          name: loadout.mainCombo.title,
+          price: loadout.mainCombo.totalPrice,
+          weight: loadout.mainCombo.totalWeight,
+          checked: false
+        });
+      }
+
+      // 2. Wearables
+      if(loadout.hat) {
+        checklistItems.push({ id: 'chk-hat', category: '防曬頭部', name: loadout.hat.name, price: loadout.hat.price, weight: loadout.hat.weight, checked: false });
+      }
+      if(loadout.eyewear) {
+        checklistItems.push({ id: 'chk-eyewear', category: '偏光鏡', name: loadout.eyewear.name, price: loadout.eyewear.price, weight: loadout.eyewear.weight, checked: false });
+      }
+      if(loadout.vest) {
+        checklistItems.push({ id: 'chk-vest', category: '浮力背心', name: loadout.vest.name, price: loadout.vest.price, weight: loadout.vest.weight, checked: false });
+      }
+      if(loadout.boots) {
+        checklistItems.push({ id: 'chk-boots', category: '防滑釘鞋', name: loadout.boots.name, price: loadout.boots.price, weight: loadout.boots.weight, checked: false });
+      }
+
+      // 3. 9-Grid Pockets Items
+      loadout.pockets.forEach((p, idx) => {
+        if(p) {
+          checklistItems.push({
+            id: `chk-pocket-${idx}`,
+            category: `口袋配件 #${idx+1}`,
+            name: p.name,
+            price: p.price,
+            weight: p.weight,
+            checked: false
+          });
+        }
+      });
+
+      // 4. Lures in Box
+      loadout.lureBox.forEach((l, idx) => {
+        checklistItems.push({
+          id: `chk-lure-${idx}`,
+          category: `路亞盒假餌 #${idx+1}`,
+          name: l.name,
+          price: l.price,
+          weight: l.weight,
+          checked: false
+        });
+      });
+    }
+
+    function renderChecklist() {
+      buildChecklistData();
+      updateChecklistUI();
+    }
+
+    function updateChecklistUI() {
+      const container = document.getElementById('checklist-container');
+      container.innerHTML = '';
+
+      let checkedPrice = 0;
+      let checkedWeightGrams = 0;
+      let checkedCount = 0;
+
+      checklistItems.forEach((item, index) => {
+        if(item.checked) {
+          checkedPrice += item.price;
+          checkedWeightGrams += item.weight;
+          checkedCount++;
+        }
+
+        const row = document.createElement('div');
+        row.className = `flex items-center justify-between p-3 rounded-lg border transition ${item.checked ? 'bg-amber-950/20 border-amber-600/60' : 'bg-[#151310] border-[#34291c]'}`;
+        row.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <input type="checkbox" id="chk-${index}" ${item.checked ? 'checked' : ''} onchange="toggleCheckItem(${index})" class="w-4 h-4 rounded border-stone-600 accent-amber-600 cursor-pointer">
+            <label for="chk-${index}" class="cursor-pointer">
+              <span class="text-[10px] text-amber-500 uppercase tracking-widest block font-bold">${item.category}</span>
+              <span class="text-sm font-bold text-stone-200 ${item.checked ? 'text-amber-200' : ''}">${item.name}</span>
+            </label>
+          </div>
+          <div class="text-right font-mono text-xs">
+            <span class="text-amber-400 font-bold">NT$ ${item.price.toLocaleString()}</span>
+            <span class="text-stone-500 block">${item.weight} g</span>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      // Update Dynamic HUD metrics
+      document.getElementById('chk-total-price').innerText = `NT$ ${checkedPrice.toLocaleString()}`;
+      document.getElementById('chk-total-weight').innerText = `${(checkedWeightGrams / 1000).toFixed(2)} kg`;
+      const progress = checklistItems.length ? Math.round((checkedCount / checklistItems.length) * 100) : 0;
+      document.getElementById('chk-progress-percent').innerText = `${progress}%`;
+    }
+
+    function toggleCheckItem(index) {
+      checklistItems[index].checked = !checklistItems[index].checked;
+      updateChecklistUI();
+    }
+
+    // ⚡ ONE-CLICK CHECK ALL FOR CONFIDENT ANGLERS
+    function checkAllItems() {
+      checklistItems.forEach(item => item.checked = true);
+      updateChecklistUI();
+    }
+
+    function startExpeditionFromChecklist() {
+      // Calculate checked snapshot
+      const checkedPrice = checklistItems.filter(i => i.checked).reduce((acc, i) => acc + i.price, 0);
+      const checkedWeight = (checklistItems.filter(i => i.checked).reduce((acc, i) => acc + i.weight, 0) / 1000).toFixed(2);
+
+      // Open Log Modal with prefilled values
+      document.getElementById('log-outing-price').value = checkedPrice;
+      document.getElementById('log-outing-weight').value = checkedWeight;
+      openNewLogModal();
+    }
+
+    /* -------------------------------------------------------------
+       EXPEDITION BATTLE LOGS & SACRIFICE FINANCIAL HOLE
+    ------------------------------------------------------------- */
+    function renderLogs() {
+      const container = document.getElementById('logs-list');
+      container.innerHTML = '';
+
+      let totalSacrificeLoss = 0;
+
+      expeditionLogs.forEach(log => {
+        totalSacrificeLoss += (log.lossAmount || 0);
+
+        const card = document.createElement('div');
+        card.className = "w-panel p-4 rounded-lg border border-[#403322] space-y-3";
+        card.innerHTML = `
+          <div class="flex flex-wrap items-center justify-between border-b border-[#2d2419] pb-2.5">
+            <div>
+              <span class="text-xs text-amber-500 font-mono font-bold">${log.date}</span>
+              <h3 class="text-base font-bold text-stone-100">${log.spot}</h3>
+            </div>
+            <div class="flex space-x-3 text-xs">
+              <span class="px-2.5 py-1 bg-[#1a1714] rounded border border-amber-800/40 text-amber-300">
+                出征身價: <strong class="cinzel">NT$ ${log.outingPrice.toLocaleString()}</strong>
+              </span>
+              <span class="px-2.5 py-1 bg-[#1a1714] rounded border border-emerald-800/40 text-emerald-300">
+                配重: <strong class="cinzel">${log.outingWeight} kg</strong>
+              </span>
+              <span class="px-2.5 py-1 bg-stone-900 rounded border border-stone-700 text-stone-300">
+                戰友: ${log.buddies || '孤狼單飛'}
+              </span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div class="bg-[#121310] p-2.5 rounded border border-[#2a3022]">
+              <div class="font-bold text-emerald-400 mb-1 flex items-center space-x-1">
+                <i data-lucide="trophy" class="w-3.5 h-3.5"></i>
+                <span>起獲戰果 (Catches)</span>
+              </div>
+              <div class="text-stone-300">${log.catches || '本日空軍 (大自然是最好的老師)'}</div>
+            </div>
+
+            <div class="bg-[#181111] p-2.5 rounded border border-red-950/70">
+              <div class="font-bold text-red-400 mb-1 flex items-center justify-between">
+                <span class="flex items-center space-x-1">
+                  <i data-lucide="anchor" class="w-3.5 h-3.5"></i>
+                  <span>祭河殉職慘劇 (Sacrifices)</span>
+                </span>
+                <span class="text-red-300 cinzel font-bold">虧損: NT$ ${log.lossAmount.toLocaleString()}</span>
+              </div>
+              <div class="text-stone-300">${log.sacrifices || '無損撤退 (水神保佑)'}</div>
+            </div>
+          </div>
+
+          <div class="text-xs text-stone-400 italic pt-1">
+            " ${log.notes} "
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      document.getElementById('lifetime-snag-loss').innerText = `NT$ ${totalSacrificeLoss.toLocaleString()}`;
+      document.getElementById('logs-count').innerText = `共 ${expeditionLogs.length} 篇戰報日誌`;
+      lucide.createIcons();
+    }
+
+    function submitNewLog(e) {
+      e.preventDefault();
+      const newLog = {
+        id: `log-${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        spot: document.getElementById('log-spot').value,
+        buddies: document.getElementById('log-buddies').value,
+        outingPrice: parseInt(document.getElementById('log-outing-price').value) || 0,
+        outingWeight: parseFloat(document.getElementById('log-outing-weight').value) || 0,
+        catches: document.getElementById('log-catches').value,
+        sacrifices: document.getElementById('log-loss-items').value,
+        lossAmount: parseInt(document.getElementById('log-loss-price').value) || 0,
+        notes: document.getElementById('log-notes').value
+      };
+
+      expeditionLogs.unshift(newLog);
+      closeModal('modal-add-log');
+      renderLogs();
+      switchTab('logs');
+      alert('📜 戰報歸檔完成！殉職損失已精準記入水下黑洞總統計！');
+    }
+
+    /* -------------------------------------------------------------
+       REGISTER NEW GEAR MODAL
+    ------------------------------------------------------------- */
+    function openAddGearModal(defaultCat = 'rod') {
+      document.getElementById('new-gear-cat').value = defaultCat;
+      toggleFormFields(defaultCat);
+      document.getElementById('modal-add-gear').classList.remove('hidden');
+    }
+
+    function toggleFormFields(cat) {
+      const rodField = document.getElementById('field-rod-spec');
+      const softField = document.getElementById('field-soft-spec');
+      if(cat === 'rod') {
+        rodField.classList.remove('hidden');
+        softField.classList.add('hidden');
+      } else if(cat === 'soft') {
+        rodField.classList.add('hidden');
+        softField.classList.remove('hidden');
+      } else {
+        rodField.classList.add('hidden');
+        softField.classList.add('hidden');
+      }
+    }
+
+    function submitNewGear(e) {
+      e.preventDefault();
+      const cat = document.getElementById('new-gear-cat').value;
+      const brand = document.getElementById('new-gear-brand').value;
+      const name = document.getElementById('new-gear-name').value;
+      const weight = parseInt(document.getElementById('new-gear-weight').value);
+      const price = parseInt(document.getElementById('new-gear-price').value);
+
+      const newGear = {
+        id: `item-${Date.now()}`,
+        cat: cat,
+        brand: brand,
+        name: name,
+        weight: weight,
+        price: price,
+        rarity: price > 10000 ? 'relic' : (price > 4000 ? 'master' : 'magic')
+      };
+
+      if(cat === 'rod') newGear.cast = document.getElementById('new-gear-cast').value;
+      if(cat === 'soft') {
+        newGear.len = document.getElementById('new-gear-len').value;
+        newGear.count = parseInt(document.getElementById('new-gear-count').value) || 6;
+      }
+
+      inventoryStorage.push(newGear);
+      closeModal('modal-add-gear');
+      renderHUDStorageValue();
+      renderStorageGrid('all');
+      alert(`⚔️ 已成功將 [${brand}] ${name} 登錄入倉庫庫存！`);
+    }
+
+    /* -------------------------------------------------------------
+       CANVAS PIXEL ART ENGINE (BREATHING & CASTING)
+    ------------------------------------------------------------- */
+    let canvas, ctx;
+    let breathTick = 0;
+    let isCasting = false;
+
+    function initPixelPaperDoll() {
+      canvas = document.getElementById('paperdoll');
+      ctx = canvas.getContext('2d');
+      requestAnimationFrame(dollLoop);
+    }
+
+    function dollLoop() {
+      breathTick += 0.05;
+      const breathOffset = Math.sin(breathTick) > 0 ? 1 : 0;
+      drawPixelHero(breathOffset);
+      requestAnimationFrame(dollLoop);
+    }
+
+    function drawPixelHero(breath) {
+      ctx.clearRect(0, 0, 64, 64);
+
+      // Shadow
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fillRect(20, 58, 24, 4);
+
+      // Boots
+      ctx.fillStyle = loadout.boots ? "#443a2a" : "#222";
+      ctx.fillRect(24, 52, 6, 8);
+      ctx.fillRect(34, 52, 6, 8);
+
+      // Pants
+      ctx.fillStyle = "#333a2e";
+      ctx.fillRect(24, 40, 16, 12);
+
+      // Body / Vest
+      ctx.fillStyle = loadout.vest ? "#203a27" : "#3d3222";
+      ctx.fillRect(22, 24 - breath, 20, 16);
+
+      // Head & White Witcher Hair
+      ctx.fillStyle = "#d4d4d4";
+      ctx.fillRect(24, 12 - breath, 16, 12);
+      ctx.fillStyle = "#e0a97a"; // Face
+      ctx.fillRect(26, 15 - breath, 12, 8);
+
+      // Eyewear (Independent Pixel Layer!)
+      if(loadout.eyewear) {
+        ctx.fillStyle = "#38bdf8"; // polarized cyan shine
+        ctx.fillRect(27, 17 - breath, 4, 2);
+        ctx.fillRect(33, 17 - breath, 4, 2);
+        ctx.fillStyle = "#0369a1";
+        ctx.fillRect(31, 18 - breath, 2, 1); // nose bridge
+      }
+
+      // Hat (Independent Pixel Layer!)
+      if(loadout.hat) {
+        ctx.fillStyle = "#854d0e"; // safari hat brim
+        ctx.fillRect(18, 12 - breath, 28, 3);
+        ctx.fillRect(24, 8 - breath, 16, 4);
+      }
+
+      // Rod in Hand (or casting)
+      if(loadout.mainCombo) {
+        ctx.fillStyle = "#eab308"; // carbon golden rod
+        if(!isCasting) {
+          ctx.fillRect(44, 10, 2, 45); // slung or held
+          ctx.fillStyle = "#f59e0b";
+          ctx.fillRect(43, 38, 4, 4); // reel spool
+        } else {
+          ctx.fillRect(40, 6, 20, 2); // whip forward
+          ctx.fillRect(38, 8, 4, 4);
+        }
+      }
+    }
+
+    function toggleHeroAction() {
+      isCasting = true;
+      setTimeout(() => { isCasting = false; }, 300);
+    }
+
+    /* -------------------------------------------------------------
+       NAVIGATION TABS & HELPERS
+    ------------------------------------------------------------- */
+    function switchTab(tab) {
+      ['inventory', 'checklist', 'logs'].forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        const view = document.getElementById(`view-${t}`);
+        if(t === tab) {
+          btn.className = "px-4 py-1.5 text-sm font-medium rounded transition flex items-center space-x-2 text-amber-300 bg-amber-950/40 border border-amber-800/60";
+          view.classList.remove('hidden');
+        } else {
+          btn.className = "px-4 py-1.5 text-sm font-medium rounded transition flex items-center space-x-2 text-stone-400 hover:text-amber-200";
+          view.classList.add('hidden');
+        }
+      });
+      if(tab === 'checklist') renderChecklist();
+      if(tab === 'logs') renderLogs();
+    }
+
+    function openNewLogModal() {
+      document.getElementById('modal-add-log').classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function getRarityBorder(rarity) {
+      if(rarity === 'relic') return 'border-purple-600';
+      if(rarity === 'master') return 'border-orange-500';
+      if(rarity === 'magic') return 'border-blue-500';
+      return 'border-[#3f3526]';
+    }
+  </script>
+</body>
+</html>
